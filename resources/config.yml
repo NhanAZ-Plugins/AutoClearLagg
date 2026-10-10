@@ -1,7 +1,7 @@
 ---
 # AutoClearLagg (ACL) Config
 
-# Seconds between each clear lagg
+# Positive number of seconds between cleanup passes
 seconds: 300
 
 # Entities to clear
@@ -17,6 +17,6 @@ messages:
   time-left: "§cEntities will clear in {SECONDS} seconds"
   entities-cleared: "§cCleared a total of {COUNT} entities"
 
-# Countdown times
+# Positive countdown seconds to broadcast before a cleanup pass
 times: [60, 30, 15, 10, 5, 4, 3, 2, 1]
 ...

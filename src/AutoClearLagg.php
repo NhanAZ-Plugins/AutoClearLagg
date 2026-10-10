@@ -3,16 +3,14 @@ declare(strict_types=1);
 
 namespace twisted\autoclearlagg;
 
-use pocketmine\entity\Creature;
 use pocketmine\entity\Human;
+use pocketmine\entity\Living;
 use pocketmine\entity\object\ExperienceOrb;
 use pocketmine\entity\object\ItemEntity;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
-use function array_map;
 use function in_array;
 use function is_array;
-use function is_numeric;
 use function str_replace;
 use function strtolower;
 
@@ -21,76 +19,103 @@ class AutoClearLagg extends PluginBase{
     public const LANG_TIME_LEFT = "time-left";
     public const LANG_ENTITIES_CLEARED = "entities-cleared";
 
-    /** @var int */
-    private $interval;
-    /** @var int */
-    private $seconds;
+    private int $interval;
+    private int $seconds;
 
-    /** @var bool */
-    private $clearItems;
-    /** @var bool */
-    private $clearMobs;
-    /** @var bool */
-    private $clearXpOrbs;
+    private bool $clearItems;
+    private bool $clearMobs;
+    private bool $clearXpOrbs;
 
-    /** @var string[] */
-    private $exemptEntities;
+    /** @var list<string> */
+    private array $exemptEntities;
 
-    /** @var string[] */
-    private $messages;
-    /** @var int[] */
-    private $broadcastTimes;
+    /** @var array<string, string> */
+    private array $messages;
+    /** @var list<int> */
+    private array $broadcastTimes;
+
+    private function rejectConfiguration(string $message) : void{
+        $this->getLogger()->warning("Config error: " . $message . ". Cleanup will not start.");
+    }
 
     public function onEnable() : void{
         $config = $this->getConfig()->getAll();
 
-        if(!is_numeric($config["seconds"] ?? 300)){
-            $this->getLogger()->error("Config error: seconds attribute must an integer");
-            $this->getServer()->getPluginManager()->disablePlugin($this);
+        $seconds = $config["seconds"] ?? 300;
+        if(!is_int($seconds) || $seconds < 1){
+            $this->rejectConfiguration("seconds must be a positive integer");
 
             return;
         }
-        $this->interval = $this->seconds = $config["seconds"];
+        $this->interval = $this->seconds = $seconds;
 
         if(!is_array($config["clear"] ?? [])){
-            $this->getLogger()->error("Config error: clear attribute must an array");
-            $this->getServer()->getPluginManager()->disablePlugin($this);
+            $this->rejectConfiguration("clear must be an array");
 
             return;
         }
         $clear = $config["clear"] ?? [];
-        $this->clearItems = (bool) ($clear["items"] ?? false);
-        $this->clearMobs = (bool) ($clear["mobs"] ?? false);
-        $this->clearXpOrbs = (bool) ($clear["xp-orbs"] ?? false);
-        if(!is_array($clear["exempt"] ?? [])){
-            $this->getLogger()->error("Config error: clear.exempt attribute must an array");
-            $this->getServer()->getPluginManager()->disablePlugin($this);
+        $items = $clear["items"] ?? false;
+        $mobs = $clear["mobs"] ?? false;
+        $xpOrbs = $clear["xp-orbs"] ?? false;
+        if(!is_bool($items) || !is_bool($mobs) || !is_bool($xpOrbs)){
+            $this->rejectConfiguration("clear flags must be booleans");
 
             return;
         }
-        $this->exemptEntities = array_map(function($entity) : string{
-            return strtolower((string) $entity);
-        }, $clear["exempt"] ?? []);
+        $this->clearItems = $items;
+        $this->clearMobs = $mobs;
+        $this->clearXpOrbs = $xpOrbs;
+        if(!is_array($clear["exempt"] ?? [])){
+            $this->rejectConfiguration("clear.exempt must be an array");
+
+            return;
+        }
+        $this->exemptEntities = [];
+        foreach($clear["exempt"] ?? [] as $entity){
+            if(!is_string($entity) || $entity === ""){
+                $this->rejectConfiguration("clear.exempt must contain nonempty entity names");
+
+                return;
+            }
+            $this->exemptEntities[] = strtolower($entity);
+        }
 
         if(!is_array($config["messages"] ?? [])){
-            $this->getLogger()->error("Config error: times attribute must an array");
-            $this->getServer()->getPluginManager()->disablePlugin($this);
+            $this->rejectConfiguration("messages must be an array");
 
             return;
         }
         $messages = $config["messages"] ?? [];
-        $this->messages = [
+        $defaults = [
             self::LANG_TIME_LEFT => $messages[self::LANG_TIME_LEFT] ?? "§cEntities will clear in {SECONDS} seconds",
             self::LANG_ENTITIES_CLEARED => $messages[self::LANG_ENTITIES_CLEARED] ?? "§cCleared a total of {COUNT} entities"
         ];
+        $this->messages = [];
+        foreach($defaults as $key => $message){
+            if(!is_string($message)){
+                $this->rejectConfiguration("messages." . $key . " must be a string");
 
-        if(!is_array($config["times"] ?? [])){
-            $this->getLogger()->error("Config error: times attribute must an array");
-            $this->getServer()->getPluginManager()->disablePlugin($this);
+                return;
+            }
+            $this->messages[$key] = $message;
+        }
+
+        $times = $config["times"] ?? [60, 30, 15, 10, 5, 4, 3, 2, 1];
+        if(!is_array($times)){
+            $this->rejectConfiguration("times must be an array");
 
             return;
         }
-        $this->broadcastTimes = $config["times"] ?? [60, 30, 15, 10, 5, 4, 3, 2, 1];
+        $this->broadcastTimes = [];
+        foreach($times as $time){
+            if(!is_int($time) || $time < 1){
+                $this->rejectConfiguration("times must contain positive integers");
+
+                return;
+            }
+            $this->broadcastTimes[] = $time;
+        }
 
         $this->getScheduler()->scheduleRepeatingTask(new ClosureTask(function() : void{
             if(--$this->seconds === 0){
@@ -100,8 +125,8 @@ class AutoClearLagg extends PluginBase{
                         if($this->clearItems && $entity instanceof ItemEntity){
                             $entity->flagForDespawn();
                             ++$entitiesCleared;
-                        }else if($this->clearMobs && $entity instanceof Creature && !$entity instanceof Human){
-                            if(!in_array(strtolower($entity->getName()), $this->exemptEntities)){
+                        }else if($this->clearMobs && $entity instanceof Living && !$entity instanceof Human){
+                            if(!in_array(strtolower($entity->getName()), $this->exemptEntities, true)){
                                 $entity->flagForDespawn();
                                 ++$entitiesCleared;
                             }
@@ -116,7 +141,7 @@ class AutoClearLagg extends PluginBase{
                 }
 
                 $this->seconds = $this->interval;
-            }else if(in_array($this->seconds, $this->broadcastTimes) && $this->messages[self::LANG_TIME_LEFT] !== ""){
+            }else if(in_array($this->seconds, $this->broadcastTimes, true) && $this->messages[self::LANG_TIME_LEFT] !== ""){
                 $this->getServer()->broadcastMessage(str_replace("{SECONDS}", (string) $this->seconds, $this->messages[self::LANG_TIME_LEFT]));
             }
         }), 20);

@@ -1,12 +1,12 @@
 name: AutoClearLagg
-description: Recoded & improved auto clear lagg plugin
+description: Clear selected dropped items, mobs and experience orbs on a timer
 
 main: twisted\autoclearlagg\AutoClearLagg
 src-namespace-prefix: twisted\autoclearlagg
-version: 4.0.2
+version: 4.0.3
 api: 5.0.0
 
 author: Twisted
 authors:
   - NhanAZ
-website: https://github.com/TwistedAsylumMC/AutoClearLagg
+website: https://github.com/NhanAZ-Plugins/AutoClearLagg
