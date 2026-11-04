@@ -1,8 +1,15 @@
 # AutoClearLagg
 
-AutoClearLagg periodically removes selected dropped items, nonplayer living entities and experience orbs from loaded worlds on an Axolotl-PM server. It can warn players before each cleanup pass and report the number of entities flagged for removal.
+Periodically clear selected dropped items, mobs and XP orbs on Axolotl-PM
 
-This is a maintained GPL-3.0 fork of [AutoClearLagg-1](https://github.com/iZeaoGamer/AutoClearLagg-1). The original author and contributor credits remain in `plugin.yml` and Git history.
+[![CI](https://github.com/NhanAZ-Plugins/AutoClearLagg/actions/workflows/build.yml/badge.svg)](https://github.com/NhanAZ-Plugins/AutoClearLagg/actions/workflows/build.yml)
+[![Latest release](https://img.shields.io/github/v/release/NhanAZ-Plugins/AutoClearLagg)](https://github.com/NhanAZ-Plugins/AutoClearLagg/releases/latest)
+[![License](https://img.shields.io/github/license/NhanAZ-Plugins/AutoClearLagg)](https://github.com/NhanAZ-Plugins/AutoClearLagg/blob/master/LICENSE)
+[![Discord](https://img.shields.io/discord/986553214889517088?label=Discord&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/j2X83ujT6c)
+
+## Overview
+
+This plugin targets the PocketMine-MP and Axolotl-PM API 5 ecosystem and is maintained under [NhanAZ-Plugins](https://github.com/NhanAZ-Plugins).
 
 ## Requirements and compatibility
 
